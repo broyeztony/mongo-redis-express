@@ -56,11 +56,6 @@ authorizeMiddlewareFn = (req, res, next) => {
 		jwtMap.set(bearerToken, jwtHistoricToken)
 
 		const timeSinceLastAccess = moment().valueOf() - jwtHistoricToken.lastAccess
-		/* if(timeSinceLastAccess < ACCESS_FREQ_THRESHOLD) {
-			jwtMap.delete(bearerToken)
-			next(createError(401, `The token's last access timestamp ${jwtHistoricToken.lastAccess} is too recent. timeSinceLastAccess is ${timeSinceLastAccess}`))
-		} */
-
 		jwtHistoricToken.lastAccess = moment().valueOf()
 		jwtMap.set(bearerToken, jwtHistoricToken)
 	}
