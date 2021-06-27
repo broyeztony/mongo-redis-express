@@ -1,12 +1,91 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken')
+const moment = require('moment')
+const expressip = require('express-ip')
+const httpErrors = require('./../errors/BaseHttpError');
 
+/**
+ * Middleware functions
+ */
+authorizeMiddlewareFn = (req, res, next) => {
+	console.log('[middleware authorizeMiddlewareFn enter]');
 
-router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn, async (req, res) => {
+	if(!req.headers.authorization) {
+		next(new httpErrors.Http401Error(res, 'missing Authorization header.'))
+	}
+
+	const bearerToken =  req.headers.authorization.slice(7, req.headers.authorization.length)
+	try {
+
+		const jwtDecoded = jwt.verify(bearerToken, SECRET_B64);
+		res.locals.jwtDecoded = jwtDecoded // <-- do it once in above line and pass it along the middleware pipeline
+		// console.log('@@ jwtDecoded', jwtDecoded, jwtDecoded.jti)
+
+		const jwtHistoricToken = jwtMap.get(bearerToken)
+
+		if(!jwtHistoricToken) { // token was not created from this server or no longer in list of valid tokens
+			next(new httpErrors.Http401Error(res, 'Invalid token.'))
+		}
+
+		/**
+		 * Below seems a minimal safeguard against replay attack ?
+		 */
+		if(jwtHistoricToken.forIp !== req.ipInfo.ip) {
+			next(new httpErrors.Http401Error(res, 'Authorization error.'))
+		}
+
+		jwtHistoricToken.numAccess += 1
+		jwtMap.set(bearerToken, jwtHistoricToken)
+
+		const timeSinceLastAccess = moment().valueOf() - jwtHistoricToken.lastAccess
+		jwtHistoricToken.lastAccess = moment().valueOf()
+		jwtMap.set(bearerToken, jwtHistoricToken)
+	}
+	catch(error) {
+		jwtMap.delete(bearerToken) // <-- this will clean up the map from expired token since a failing jwt.verify() will lead here
+		next(new httpErrors.Http401Error(res, 'Authorization error.'))
+	}
+
+	console.log('[middleware authorizeMiddlewareFn exit]');
+	next();
+}
+
+cacheMiddlewareFn = (req, res, next) => {
+
+	console.log('[middleware cacheMiddlewareFn enter]')
+	const key = [req.route.path, req.params.username].join('~')
+	console.log('@@ key', key)
+
+	const errCallb = (err) => {
+		(new httpErrors.Http400Error(res, err)).emit()
+		return
+	}
+
+	const replyCallb = (value) => {
+		if (!!value) {
+			console.log('@@ cacheMiddlewareFn retrieved data from cache', value)
+			res.status(200).send(value);
+		}
+		else {
+			console.log('[middleware cacheMiddlewareFn exit]')
+			next();
+		}
+	}
+
+	redis.getV(key, errCallb, replyCallb)
+}
+
+/**
+ * Users routes
+ */
+router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn,  async (req, res) => {
 
 	const searchingProfileOf = req.params.username
 	if(!searchingProfileOf) {
-		res.send(createError(400, 'Bad request: username is missing.'))
+
+		(new httpErrors.Http400Error(res, 'username is missing.')).emit()
+		return
 	}
 
 	try {
@@ -15,7 +94,8 @@ router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn, async
 		promise.toArray((err, result) => {
 
 			if (err) {
-				res.send(createError(500, err))
+				(new httpErrors.Http500Error(res, err)).emit()
+				return
 			}
 
 			const profile = result && result.length === 1 && result[0]
@@ -32,12 +112,14 @@ router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn, async
 				res.status(200).send(response)
 			}
 			else {
-				res.send(createError(404, 'The resource was not found.'))
+				(new httpErrors.Http404Error(res, 'The resource was not found.')).emit()
+				return
 			}
 		})
 	}
-	catch(error) {
-		res.send(createError(500, error))
+	catch(err) {
+		(new httpErrors.Http500Error(res, err)).emit()
+		return
 	}
 })
 
@@ -47,26 +129,29 @@ router.patch('/:username', authorizeMiddlewareFn, async (req, res) => {
 	const payload = req.body;
 
 	if(!params.username) {
-		res.send(createError(400, `Bad request: property 'username' is missing.`))
+		(new httpErrors.Http400Error(res, `property 'username' is missing.`)).emit()
+		return
 	}
 
 	if(!payload.name) {
-		res.send(createError(400, 'Bad request: incorrect payload.'))
+		(new httpErrors.Http400Error(res, `Incorrect payload.`)).emit()
+		return
 	}
 
 	if(res.locals.jwtDecoded.username !== params.username) {
-		res.send(createError(400, `Bad request: the username ${params.username} can not be updated.`))
+		(new httpErrors.Http400Error(res, `the username ${params.username} can not be updated.`)).emit()
+		return
 	}
 
 	try {
 
 		const patchPromise = mongo.patchUser(params.username, { name: payload.name } )
-
 		patchPromise
 			.then((result, err) => {
 
 				if(err) {
-					res.send(createError(500, 'There was an internal server error: ${err}'))
+					(new httpErrors.Http500Error(res, err)).emit()
+					return
 				}
 				else {
 
@@ -81,8 +166,9 @@ router.patch('/:username', authorizeMiddlewareFn, async (req, res) => {
 				}
 			})
 	}
-	catch(error) {
-		res.send(createError(500, `There was an internal server error: ${error}`))
+	catch(err) {
+		(new httpErrors.Http500Error(res, err)).emit()
+		return
 	}
 })
 

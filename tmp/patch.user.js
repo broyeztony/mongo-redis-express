@@ -20,7 +20,7 @@ describe('PATCH /user', async () => {
 				}
 			}
 
-			const newName = 'Hector'
+			const newName = 'Nikos'
 			const axiosWithToken = axios.create(authorizedConfig)
 			const patchRes = await axiosWithToken.patch('http://localhost:3000/users/jean0', { name: newName })
 

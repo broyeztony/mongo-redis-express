@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const moment = require('moment')
 const md5 = require('md5')
-const createError = require('http-errors');
+const httpErrors = require('./../errors/BaseHttpError');
 
 
 router.post('/login', async (req, res) => {
@@ -12,14 +12,16 @@ router.post('/login', async (req, res) => {
 	const payload = req.body
 
 	if(!payload.username || !payload.password) {
-		res.status(400).send('Bad request: username or password is missing.')
+		(new httpErrors.Http400Error(res, 'username or password is missing')).emit()
+		return;
 	}
 
 	const userPromise = await mongo.findUserByUsername(payload.username)
 	userPromise.toArray((err, result) => {
 
 		if(err) {
-			res.status(500).send('There was an internal server error.')
+			(new httpErrors.Http500Error(res, err)).emit()
+			return
 		}
 
 		if(result && result.length === 1) {
@@ -28,7 +30,8 @@ router.post('/login', async (req, res) => {
 			bcrypt.compare(payload.password, user.password, (err, match) => {
 
 				if(err) {
-					res.status(500).send('There was an internal server error.')
+					(new httpErrors.Http500Error(res, err)).emit()
+					return
 				}
 
 				if (match) {
@@ -40,7 +43,7 @@ router.post('/login', async (req, res) => {
 						jti: md5(`${req.ipInfo}:${now}`)
 					}
 
-					const token = jwt.sign(jwtPayload, secretBase64Buffer, { algorithm: "HS256", expiresIn: TOKEN_VALIDITY_PERIOD })
+					const token = jwt.sign(jwtPayload, SECRET_B64, { algorithm: "HS256", expiresIn: TOKEN_VALIDITY_PERIOD })
 					jwtMap.set(token, { jti: jwtPayload.jti, forIp: req.ipInfo.ip, lastAccess: now, numAccess: 1 })
 
 					console.log("@@ jwtMap", jwtMap)
@@ -51,12 +54,14 @@ router.post('/login', async (req, res) => {
 					res.status(200).send(response)
 				}
 				else {
-					res.send(createError(401, 'Authentication failed: wrong password.'))
+					(new httpErrors.Http401Error(res, 'wrong password.')).emit()
+					return
 				}
 			})
 		}
 		else {
-			res.send(createError(403, 'The resource was not found.'))
+			(new httpErrors.Http403Error(res, 'the user does not exist.')).emit() // not sure if it should be a 403 or a 401. TODO: read about it and update accordingly
+			return
 		}
 	})
 })

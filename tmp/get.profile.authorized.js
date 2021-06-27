@@ -7,7 +7,7 @@ describe('Read profile, positive flow', async () =>  {
 		it('should return the profile of the specified username, given a valid JWT is provided', async () => {
 
 			// Get a JWT token
-			const loginRes = await axios.post('http://localhost:3000/login', {"username": "jean0","password": "jeanpassword"})
+			const loginRes = await axios.post('http://localhost:3000/login', {"username": "jean0", "password": "jeanpassword"})
 			const token = loginRes && loginRes.data && loginRes.data.access_token
 
 			// Read profile
@@ -33,7 +33,6 @@ describe('Read profile, positive flow', async () =>  {
 				console.log('@@ profileRes error', error)
 			}
 
-		});
-	});
-});
-
+		})
+	})
+})

@@ -9,91 +9,17 @@ const expressip = require('express-ip')
 const {Mongo} = require('./proxies/Mongo');
 const {Redis} = require('./proxies/Redis');
 
-// init DB connections and other globals
+// few globals and constants below
+// TODO: move this into common files that can be required
 mongo 	= new Mongo()
 redis 	= new Redis()
-
-jwtMap = new Map()
+jwtMap = new Map() // <- this could be exposed via into a dedicated JwtHistory class that keeps track of the JWT generated
 
 TOKEN_VALIDITY_PERIOD = 3600 // in seconds
 NB_ACCESS_THRESHOLD = 720 // max number of times the token can be used within the token validity period (TOKEN_VALIDITY_PERIOD)
-ACCESS_FREQ_THRESHOLD = 10 // min number of seconds between 2 usages of the token, in seconds
-secret = "YUBO ROCKS !"
-secretBase64Buffer = Buffer.from(secret, 'base64')
+SECRET_B64 = Buffer.from("YUBO ROCKS !", 'base64')
 
-authorizeMiddlewareFn = (req, res, next) => {
-	console.log('[middleware authorizeMiddlewareFn enter]');
-
-	if(!req.headers.authorization) {
-		next(createError(401, "Authorization error"))
-	}
-
-	const bearerToken =  req.headers.authorization.slice(7, req.headers.authorization.length)
-	try {
-
-		const jwtDecoded = jwt.verify(bearerToken, secretBase64Buffer);
-		res.locals.jwtDecoded = jwtDecoded // <-- do it once in above line and pass it along the middleware pipeline
-		console.log('@@ jwtDecoded', jwtDecoded, jwtDecoded.jti)
-
-		// validate against replay attack
-		const jwtHistoricToken = jwtMap.get(bearerToken)
-
-		console.log('@@ jwtHistoricToken', jwtHistoricToken)
-
-		if(!jwtHistoricToken) {
-			next(createError(401, "Invalid token"))
-		}
-
-		if(jwtHistoricToken.forIp !== req.ipInfo.ip) {
-			next(createError(401, "Authorization error"))
-		}
-
-		if(jwtHistoricToken.numAccess > NB_ACCESS_THRESHOLD) {
-			jwtMap.delete(bearerToken)
-			next(createError(401, "Authorization error"))
-		}
-		jwtHistoricToken.numAccess += 1
-		jwtMap.set(bearerToken, jwtHistoricToken)
-
-		const timeSinceLastAccess = moment().valueOf() - jwtHistoricToken.lastAccess
-		jwtHistoricToken.lastAccess = moment().valueOf()
-		jwtMap.set(bearerToken, jwtHistoricToken)
-	}
-	catch(error) {
-		jwtMap.delete(bearerToken) // <-- this will clean up the map from expired token since a failing jwt.verify() will lead here
-		next(createError(401, "Authorization error"))
-	}
-
-	console.log('[middleware authorizeMiddlewareFn exit]');
-	next();
-}
-
-cacheMiddlewareFn = (req, res, next) => {
-
-	console.log('[middleware cacheMiddlewareFn enter]')
-	const key = [req.route.path, req.params.username].join('~')
-	console.log('@@ key', key)
-
-	const errCallb = (err) => {
-		res.send(createError(400, err));
-	}
-
-	const replyCallb = (value) => {
-		if (!!value) {
-			console.log('@@ cacheMiddlewareFn retrieved data from cache', value)
-			res.status(200).send(value);
-		}
-		else {
-			console.log('[middleware cacheMiddlewareFn exit]')
-			next();
-		}
-	}
-
-	redis.getV(key, errCallb, replyCallb)
-}
-
-
-// -------------------------------------------------------
+// ------------------------------------------------------- Express boilerplate generated code
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 
