@@ -1,8 +1,8 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
 const jwt = require('jsonwebtoken')
 const moment = require('moment')
 const expressip = require('express-ip')
@@ -17,7 +17,7 @@ jwtMap = new Map()
 
 TOKEN_VALIDITY_PERIOD = 3600 // in seconds
 NB_ACCESS_THRESHOLD = 720 // max number of times the token can be used within the token validity period (TOKEN_VALIDITY_PERIOD)
-ACCESS_FREQ_THRESHOLD = 1000 // min number of seconds between 2 usages of the token, in seconds
+ACCESS_FREQ_THRESHOLD = 10 // min number of seconds between 2 usages of the token, in seconds
 secret = "YUBO ROCKS !"
 secretBase64Buffer = Buffer.from(secret, 'base64')
 
@@ -56,10 +56,10 @@ authorizeMiddlewareFn = (req, res, next) => {
 		jwtMap.set(bearerToken, jwtHistoricToken)
 
 		const timeSinceLastAccess = moment().valueOf() - jwtHistoricToken.lastAccess
-		if(timeSinceLastAccess < ACCESS_FREQ_THRESHOLD) {
+		/* if(timeSinceLastAccess < ACCESS_FREQ_THRESHOLD) {
 			jwtMap.delete(bearerToken)
 			next(createError(401, `The token's last access timestamp ${jwtHistoricToken.lastAccess} is too recent. timeSinceLastAccess is ${timeSinceLastAccess}`))
-		}
+		} */
 
 		jwtHistoricToken.lastAccess = moment().valueOf()
 		jwtMap.set(bearerToken, jwtHistoricToken)
@@ -99,10 +99,10 @@ cacheMiddlewareFn = (req, res, next) => {
 
 
 // -------------------------------------------------------
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
 
-var app = express();
+const app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
