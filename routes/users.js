@@ -69,6 +69,14 @@ router.patch('/:username', authorizeMiddlewareFn, async (req, res) => {
 					res.send(createError(500, 'There was an internal server error: ${err}'))
 				}
 				else {
+
+					// we need to delete the cached profile for this user as it's been updated
+					// the way it is done here is not ideal and adds coupling
+					// TODO: refactor
+					const deleteKey = ['/profile/:username', params.username].join('~')
+					redis.delK(deleteKey)
+
+					// send confirmation
 					res.status(200).send(`The user's name was updated to ${ payload.name }.`)
 				}
 			})

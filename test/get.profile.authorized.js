@@ -21,7 +21,7 @@ describe('Read profile, positive flow', async () =>  {
 				}
 
 				const axiosWithToken = axios.create(authorizedConfig)
-				const profileRes = await axiosWithToken.get('http://localhost:3000/user/profile/jean0')
+				const profileRes = await axiosWithToken.get('http://localhost:3000/users/profile/jean0')
 				const profile = profileRes.data
 
 				console.log('@@ profileRes.data', profile)

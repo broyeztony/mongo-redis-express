@@ -17,6 +17,10 @@ class Redis {
 		this.client.on("connect", this.onConnect)
 	}
 
+	delK (key) {
+		this.client.del(key)
+	}
+
 	setKV (key, value) {
 		this.client.set(key, value, redis.print)
 	}

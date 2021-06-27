@@ -111,7 +111,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(expressip().getIpInfoMiddleware)
 
 app.use('/', indexRouter);
-app.use('/user', usersRouter);
+app.use('/users', usersRouter);
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
