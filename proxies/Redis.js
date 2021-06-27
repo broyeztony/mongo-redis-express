@@ -4,6 +4,7 @@ class Redis {
 
 	constructor() {
 
+		// TODO: provide this url through dedicated environments-aware config files
 		const settings = { /** to be moved into application environmnent files */
 			host: "104.155.159.100",
 			port: 6379,

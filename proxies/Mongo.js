@@ -5,6 +5,7 @@ class Mongo {
 
 	constructor() {
 
+		// TODO: provide this url through dedicated environments-aware config files
 		const mongoUrl = "mongodb://yubodev:Yub0D4t4b4s3@34.69.101.222:27017/appdb"
 		mongoClient.connect(mongoUrl, (err, client) => {
 			if (err) throw err;

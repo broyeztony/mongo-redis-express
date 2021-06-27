@@ -30,6 +30,7 @@ authorizeMiddlewareFn = (req, res, next) => {
 
 		/**
 		 * Below seems a minimal safeguard against replay attack ?
+		 * e.g. a valid JWT can not be sent from a different IP than the one that originally requested /login
 		 */
 		if(jwtHistoricToken.forIp !== req.ipInfo.ip) {
 			next(new httpErrors.Http401Error(res, 'Authorization error.'))
@@ -43,7 +44,7 @@ authorizeMiddlewareFn = (req, res, next) => {
 		jwtMap.set(bearerToken, jwtHistoricToken)
 	}
 	catch(error) {
-		jwtMap.delete(bearerToken) // <-- this will clean up the map from expired token since a failing jwt.verify() will lead here
+		jwtMap.delete(bearerToken) // <-- this will clean up the map from expired tokens since a failing jwt.verify() will lead here
 		next(new httpErrors.Http401Error(res, 'Authorization error.'))
 	}
 
@@ -54,6 +55,8 @@ authorizeMiddlewareFn = (req, res, next) => {
 cacheMiddlewareFn = (req, res, next) => {
 
 	console.log('[middleware cacheMiddlewareFn enter]')
+
+	// TODO: make better keys
 	const key = [req.route.path, req.params.username].join('~')
 	console.log('@@ key', key)
 
@@ -77,7 +80,8 @@ cacheMiddlewareFn = (req, res, next) => {
 }
 
 /**
- * Users routes
+ * Users route
+ * GET Profile
  */
 router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn,  async (req, res) => {
 
@@ -123,6 +127,10 @@ router.get('/profile/:username', authorizeMiddlewareFn, cacheMiddlewareFn,  asyn
 	}
 })
 
+/**
+ * Users route
+ * PATCH user
+ */
 router.patch('/:username', authorizeMiddlewareFn, async (req, res) => {
 
 	const params = req.params
@@ -156,8 +164,8 @@ router.patch('/:username', authorizeMiddlewareFn, async (req, res) => {
 				else {
 
 					// we need to delete the cached profile for this user as it's been updated
-					// the way it is done here is not ideal and adds coupling
-					// TODO: refactor
+					// the way it is done here is not ideal and adds coupling between this route and the cache middleware
+					// TODO: refactor and decouple
 					const deleteKey = ['/profile/:username', params.username].join('~')
 					redis.delK(deleteKey)
 
