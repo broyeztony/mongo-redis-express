@@ -45,6 +45,7 @@ authorizeMiddlewareFn = (req, res, next) => {
 	}
 	catch(error) {
 		jwtMap.delete(bearerToken) // <-- this will clean up the map from expired tokens since a failing jwt.verify() will lead here
+		// TODO: we also need a scheduled logic to automatically refresh the jwtMap periodically and clear the expired tokens.
 		next(new httpErrors.Http401Error(res, 'Authorization error.'))
 	}
 
