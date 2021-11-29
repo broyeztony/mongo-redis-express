@@ -39,7 +39,7 @@ A DRY run should resemble the following:
 ```
 npm test
 
-> yubo2@0.0.0 test /Users/tony/Desktop/yubo2
+> test /Users/tony/Desktop/mongo-redis-express
 > mocha --timeout 10000
 
 
